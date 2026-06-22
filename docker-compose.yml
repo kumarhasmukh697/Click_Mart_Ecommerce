@@ -1,0 +1,32 @@
+version: "3.9"
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: clickmart-backend
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app
+    environment:
+      DEBUG: "True"
+      SECRET_KEY: "dev-secret-key-change-me"
+      ALLOWED_HOSTS: "localhost,127.0.0.1,0.0.0.0,backend"
+      DB_ENGINE: "sqlite"
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: clickmart-frontend
+    ports:
+      - "5173:5173"
+    environment:
+      VITE_SERVER_BASE_URL: "http://localhost:8000/api/v1"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    depends_on:
+      - backend

@@ -1,0 +1,29 @@
+name: Deploy to Linode
+
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.LINODE_SSH_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H ${{ secrets.LINODE_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Deploy to server
+        run: |
+          ssh ${{ secrets.LINODE_USER }}@${{ secrets.LINODE_HOST }} <<'EOF'
+            cd /path/to/your/project
+            git pull origin master
+            docker compose -f docker-compose.prod.yml up -d --build
+          EOF
