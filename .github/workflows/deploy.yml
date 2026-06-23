@@ -3,27 +3,47 @@ name: Deploy to Linode
 on:
   push:
     branches:
-      - master
+      - master  # Runs this workflow on every push to master branch
 
 jobs:
   deploy:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-latest  # GitHub runs the job on a fresh Ubuntu machine
 
     steps:
+      # Step 1: Checkout your repository code on the GitHub runner
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup SSH key
+      # Step 2: Build the React frontend so the dist/ folder is ready
+      - name: Build frontend
+        run: |
+          cd frontend
+          npm install
+          npm run build
+        env:
+          VITE_SERVER_BASE_URL: ${{ secrets.VITE_SERVER_BASE_URL }}
+
+      # Step 3: Copy the built frontend dist folder to the server
+      - name: Copy frontend dist to server
         run: |
           mkdir -p ~/.ssh
           echo "${{ secrets.LINODE_SSH_KEY }}" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
           ssh-keyscan -H ${{ secrets.LINODE_HOST }} >> ~/.ssh/known_hosts
+          scp -r frontend/dist ${{ secrets.LINODE_USER }}@${{ secrets.LINODE_HOST }}:/root/clickmart/Click_Mart_Ecommerce/frontend/dist
 
+      # Step 4: SSH into the server, pull latest code and rebuild Docker containers
       - name: Deploy to server
         run: |
           ssh ${{ secrets.LINODE_USER }}@${{ secrets.LINODE_HOST }} <<'EOF'
-            cd /path/to/your/project
+            cd /root/clickmart/Click_Mart_Ecommerce
+
+            # Pull latest code from GitHub
             git pull origin master
-            docker compose -f docker-compose.prod.yml up -d --build
+
+            # Rebuild and restart all containers using production config
+            docker compose -f docker-compose.prod.yml --env-file backend/.env.production up -d --build
+
+            # Show container status to confirm all services are running
+            docker compose -f docker-compose.prod.yml --env-file backend/.env.production ps
           EOF
